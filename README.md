@@ -51,6 +51,45 @@ python -m chibe_mcp.run_stdio    # Stdio transport (for Claude Desktop)
 python examples/dre_beat.py
 ```
 
+## MCP Server Configuration
+
+### For Claude Desktop (Windows)
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "chibe": {
+      "command": "python",
+      "args": ["-m", "chibe_mcp.run_stdio"]
+    }
+  }
+}
+```
+
+### For MCP Clients (Streamable HTTP)
+
+```json
+{
+  "mcpServers": {
+    "chibe": {
+      "url": "http://127.0.0.1:8000/mcp"
+    }
+  }
+}
+```
+
+Or use the CLI:
+
+```bash
+# Start HTTP server
+python -m chibe_mcp.run_http
+
+# Then connect via any MCP client
+# URL: http://127.0.0.1:8000/mcp
+```
+
 ## Available MCP Tools
 
 ### Session
