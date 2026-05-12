@@ -520,6 +520,32 @@ def duplicate_track(track_index: int) -> str:
         return f"Error: {e}"
 
 
+@mcp.tool()
+def load_default_instrument(track_index: int, instrument_type: str = "drum_rack") -> str:
+    """Load a default Ableton instrument on a track.
+    
+    Attempts to load the instrument from Ableton's browser.
+    
+    Args:
+        track_index: Track to load instrument on
+        instrument_type: Type of instrument ('drum_rack', 'simpler', 'operator', 'analog')
+    
+    Returns:
+        Status message with loaded instrument name
+    """
+    try:
+        result = _cmd("load_default_instrument", {
+            "track_index": track_index,
+            "instrument_type": instrument_type
+        })
+        if result.get("loaded"):
+            return f"Loaded {result.get('instrument', instrument_type)} on track {track_index}"
+        else:
+            return f"Could not load {instrument_type} - {result.get('message', 'Please load manually')}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
 # ══════════════════════════════════════════════════════════════════
 #  CLIP MANAGEMENT TOOLS
 # ══════════════════════════════════════════════════════════════════

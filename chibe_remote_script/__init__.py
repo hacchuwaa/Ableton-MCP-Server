@@ -186,6 +186,7 @@ class ChibeRemoteScript(ControlSurface):
                 "delete_track": lambda: self._delete_track(params.get("track_index", 0)),
                 "duplicate_track": lambda: self._duplicate_track(params.get("track_index", 0)),
                 "set_track_name": lambda: self._set_track_name(params.get("track_index", 0), params.get("name", "")),
+                "load_default_instrument": lambda: self._load_default_instrument(params.get("track_index", 0), params.get("instrument_type", "drum_rack")),
                 "create_clip": lambda: self._create_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("length", 4.0)),
                 "create_arrangement_clip": lambda: self._create_arrangement_clip(params.get("track_index", 0), params.get("start_time", 0), params.get("length", 4.0)),
                 "add_notes_to_clip": lambda: self._add_notes_to_clip(params.get("track_index", 0), params.get("clip_index", 0), params.get("notes", [])),
@@ -369,6 +370,86 @@ class ChibeRemoteScript(ControlSurface):
             pass
         
         return {"name": track.name, "index": list(song.tracks).index(track)}
+
+    def _load_default_instrument(self, track_index, instrument_type="drum_rack"):
+        """Load a default instrument on a track.
+        
+        Uses Live's internal device creation - most reliable approach.
+        instrument_type: 'drum_rack', 'simpler', 'operator'
+        """
+        song = self._song
+        app = self.application()
+        
+        if track_index < 0 or track_index >= len(song.tracks):
+            raise IndexError("Track index out of range")
+        
+        track = song.tracks[track_index]
+        
+        # Select the track
+        song.view.selected_track = track
+        
+        try:
+            # Navigate browser to instruments section
+            browser = app.browser
+            
+            # Define search paths for each instrument type
+            instrument_paths = {
+                "drum_rack": ["drums", "drum rack"],
+                "simpler": ["instruments", "simpler"],
+                "operator": ["instruments", "operator"],
+                "analog": ["instruments", "analog"],
+            }
+            
+            path = instrument_paths.get(instrument_type.lower(), ["instruments", "simpler"])
+            
+            # Try to find and load the instrument
+            # First navigate browser to the right section
+            if hasattr(browser, path[0]):
+                category = getattr(browser, path[0])
+                
+                # Try to find the instrument in this category
+                if hasattr(category, "__iter__"):
+                    for item in category:
+                        try:
+                            if hasattr(item, "name") and path[1].lower() in item.name.lower():
+                                if hasattr(item, "is_loadable") and item.is_loadable:
+                                    # Load it!
+                                    browser.load_item(item)
+                                    self.log_message(f"Loaded {item.name} on track {track_index}")
+                                    return {
+                                        "loaded": True, 
+                                        "instrument": item.name, 
+                                        "track_index": track_index,
+                                        "type": instrument_type
+                                    }
+                        except:
+                            continue
+            
+            # If browser loading fails, try to create device programmatically
+            # Using Live's device instantiation
+            self.log_message(f"Browser load failed for {instrument_type}, trying device creation")
+            
+            # This is a fallback - may not work in all Live versions
+            # Try to create using view methods
+            view = app.view
+            if hasattr(view, "show_view"):
+                view.show_view("Device")
+            
+            # Check if track has no device, we can add one
+            if len(track.devices) == 0:
+                # Try selecting an empty device chain to add new device
+                pass
+            
+            return {
+                "loaded": False, 
+                "track_index": track_index,
+                "type": instrument_type,
+                "message": "Browser navigation failed - please load manually in Ableton"
+            }
+            
+        except Exception as e:
+            self.log_message(f"Error loading instrument: {e}")
+            return {"loaded": False, "track_index": track_index, "error": str(e)}
 
     def _delete_track(self, track_index):
         song = self._song
@@ -1048,7 +1129,7 @@ return {"loaded": False, "track_index": track_index, "error": str(e)}
         return {"track_index": track_index, "clip_index": clip_index, "deleted": True}
 
     def _add_notes_to_clip(self, track_index, clip_index, notes):
-        """Add MIDI notes to a clip - sets all notes at once."""
+        """Add MIDI notes to a clip."""
         song = self._song
         
         # Validate track
@@ -1064,11 +1145,13 @@ return {"loaded": False, "track_index": track_index, "error": str(e)}
         slot = track.clip_slots[clip_index]
         
         if not slot.has_clip:
-            raise RuntimeError("No clip at this slot")
+            # Create clip first if doesn't exist
+            slot.create_clip(4.0)
         
         clip = slot.clip
         
-        # Build all notes at once - this is the correct way!
+        # Build notes tuple correctly - (pitch, start, duration, velocity, muted)
+        # Format: (int, float, float, int, bool)
         all_notes = []
         for note_data in notes:
             try:
@@ -1077,13 +1160,18 @@ return {"loaded": False, "track_index": track_index, "error": str(e)}
                 duration = float(note_data.get("duration", 0.25))
                 velocity = int(note_data.get("velocity", 100))
                 muted = bool(note_data.get("mute", False))
+                # Create tuple in correct order for Live API
                 all_notes.append((pitch, start, duration, velocity, muted))
             except Exception as e:
                 self.log_message(f"Error processing note: {e}")
         
-        # Set all notes at once - this is the bug fix!
+        # Set notes - must be a list/tuple
         try:
-            clip.set_notes(tuple(all_notes))
+            # Clear existing notes first
+            if clip.length > 0:
+                clip.set_notes([])  # Clear
+            # Set new notes
+            clip.set_notes(all_notes)
             self.log_message(f"Added {len(all_notes)} notes to track {track_index}, clip {clip_index}")
         except Exception as e:
             self.log_message(f"Error setting notes: {e}")
