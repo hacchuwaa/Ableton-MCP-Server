@@ -1,62 +1,138 @@
 # Chibe - AI-Powered Ableton Live Production Suite
 
-Chibe is a comprehensive MCP (Model Context Protocol) server that enables AI agents to control Ableton Live for music production. It consists of:
+<p align="center">
+  <img src="https://img.shields.io/github/stars/hacchuwaa/Ableton-MCP-Server" alt="Stars">
+  <img src="https://img.shields.io/github/languages/top/hacchuwaa/Ableton-MCP-Server" alt="Language">
+  <img src="https://img.shields.io/github/license/hacchuwaa/Ableton-MCP-Server" alt="License">
+</p>
 
-1. **Remote Script** (`chibe_remote_script/`) - Runs inside Ableton Live, exposes the Live API via socket
-2. **MCP Server** (`chibe_mcp/`) - Bridges AI agents to Ableton via standard MCP protocol
-3. **Example Scripts** (`examples/`) - Ready-to-run beat builders
+## 🚀 About
 
-## Features
+**Chibe** is a production-ready MCP (Model Context Protocol) server that enables AI agents to control Ableton Live for professional music production. Still in active development with regular updates.
 
-- **Session Control**: Tempo, playback, loop, time signature
-- **Track Management**: Create, delete, rename, duplicate MIDI/audio tracks
-- **Clip Programming**: Create clips, add MIDI notes, fire/stop clips, read back notes
-- **Instrument Loading**: Browse Ableton's library, search, load instruments by URI
-- **Effect Management**: Load audio/MIDI effects, control device parameters
-- **Mixing**: Volume, pan, sends, solo, mute, arm
-- **Browser Integration**: Full library browser tree, search, path-based navigation
-- **Scene Control**: List and fire scenes
+### What is MCP?
 
-## Quick Start
+**Model Context Protocol (MCP)** is an open standard developed by Anthropic that enables AI applications to connect to external tools and services through a standardized interface. Think of it as "USB-C for AI" - a universal port that lets AI models communicate with any application.
 
-### 1. Install the Remote Script in Ableton
+**Why MCP for Music Production?**
+- **AI Integration**: AI assistants can control Ableton Live directly through natural language
+- **Standardized Tools**: 43+ MCP tools provide consistent, discoverable functionality
+- **Transport Flexibility**: Works via HTTP, SSE, or Stdio (great for Claude Desktop, Cursor, etc.)
+- **Extensible**: Easy to add new commands without changing the AI prompts
+
+## 🎹 Architecture
+
+```
+┌─────────────────┐      Socket (9877)      ┌──────────────────┐
+│  Ableton Live  │◄─────────────────────────►│  Remote Script   │
+│   (Python 3)   │                           │ (chibe_remote)   │
+└─────────────────┘                          └────────┬─────────┘
+                                                      │
+                                                      │ TCP
+                                                      ▼
+┌────────────────────────────────────────────────────┐
+│                  MCP Server                        │
+│                  (chibe_mcp)                       │
+│                                                    │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│   │ Session  │ │ Tracks   │ │  Clips   │   ...    │
+│   │ Tools    │ │ Tools    │ │ Tools    │          │
+│   └──────────┘ └──────────┘ └──────────┘          │
+│                                                    │
+│   Transport: HTTP / SSE / Stdio                    │
+└────────────────────────────────────────────────────┘
+                        │
+                        ▼
+┌────────────────────────────────────────────────────┐
+│              AI Agent / Client                     │
+│  (Claude Desktop, Cursor, custom LLM app, etc.)  │
+└────────────────────────────────────────────────────┘
+```
+
+## ✨ Features
+
+### Session Control
+- `get_session_info` - Get tempo, time signature, track/scene counts, playback state
+- `set_tempo` - Set BPM (92 BPM for G-Funk, 140 for House, etc.)
+- `start_playback` / `stop_playback` - Transport control
+- `set_loop` - Set loop region in arrangement
+
+### Track Management (43 tools total)
+- `create_midi_track` / `create_audio_track` - Create new tracks
+- `delete_track` / `duplicate_track` - Manage tracks
+- `set_track_name` / `set_track_name` - Rename tracks
+- `arm_track` / `set_track_solo` / `set_track_mute` - Track state
+
+### Clip & MIDI Programming
+- `create_clip` - Create MIDI clips with configurable length
+- `add_notes_to_clip` - Add MIDI notes with pitch, time, duration, velocity
+- `get_clip_notes` - Read back note data
+- `fire_clip` / `stop_clip` / `delete_clip` - Clip control
+- `set_clip_name` - Name clips
+
+### Device & Browser Integration
+- `get_browser_tree` - Hierarchical library tree (instruments, sounds, drums, effects)
+- `get_browser_items` - Items at specific path
+- `search_browser` - Search Ableton's library
+- `load_instrument` - Load instruments by URI (e.g., `query:Sounds#Bass:FileId_423099`)
+- `load_effect` / `load_drum_kit` - Load effects and drum racks
+
+### Mixing & Parameters
+- `set_volume` / `set_pan` - Track mixing
+- `set_send` - Send levels to return tracks
+- `get_track_devices` - List devices on track
+- `get_device_parameters` / `set_device_parameter` - Device automation
+
+### Master Track & Mastering
+- `get_master_info` - Master volume, pan, device count
+- `get_master_devices` - Full mastering chain info
+- `set_master_volume` / `set_master_pan` - Master output control
+- `set_master_device_parameter` - Tweak compressor, EQ, limiter parameters
+
+### Library Scanning (Fast!)
+- `get_plugins_info` - Quick-scan all available plugins/instruments
+- `scan_library` - Fast flat recursive scan with timing info
+
+### Track Routing
+- `set_track_output` - Route track output to master/other tracks
+
+## 🔧 Installation
+
+### Step 1: Install Remote Script in Ableton
 
 Copy `chibe_remote_script/` to Ableton's Remote Scripts directory:
 ```
 C:\ProgramData\Ableton\Live 12 Suite\Resources\MIDI Remote Scripts\chibe_remote_script\
 ```
 
-Enable it in Ableton: **Preferences → Link/Tempo/MIDI → Control Surface → Chibe Remote Script**
+**Enable in Ableton**: Preferences → Link/Tempo/MIDI → Control Surface → Chibe Remote Script
 
-### 2. Install Dependencies
+### Step 2: Install Dependencies
 
 ```bash
 pip install mcp uvicorn httpx
+# OR use the provided requirements.txt
+pip install -r requirements.txt
 ```
 
-### 3. Start the MCP Server
+### Step 3: Start the MCP Server
 
 ```bash
-cd chibe
-python -m chibe_mcp.run_http    # Streamable HTTP transport (port 8000)
-# OR
-python -m chibe_mcp.run_uvicorn  # SSE transport (port 8501)
-# OR  
-python -m chibe_mcp.run_stdio    # Stdio transport (for Claude Desktop)
+# Option 1: Streamable HTTP (recommended for web/API access)
+python -m chibe_mcp.run_http
+# Server runs at: http://127.0.0.1:8000/mcp
+
+# Option 2: SSE transport (alternative)
+python -m chibe_mcp.run_sse
+
+# Option 3: Stdio (for Claude Desktop, AI clients)
+python -m chibe_mcp.run_stdio
 ```
 
-### 4. Build a Beat
+### Step 4: Connect Your AI
 
-```bash
-python examples/dre_beat.py
-```
-
-## MCP Server Configuration
-
-### For Claude Desktop (Windows)
-
-Add this to your `claude_desktop_config.json`:
-
+#### Claude Desktop
+Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -68,8 +144,7 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
-### For MCP Clients (Streamable HTTP)
-
+#### Other MCP Clients
 ```json
 {
   "mcpServers": {
@@ -80,92 +155,59 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
-Or use the CLI:
+## 🎵 Example: Dr. Dre G-Funk Beat
 
+Run the included beat builder:
 ```bash
-# Start HTTP server
-python -m chibe_mcp.run_http
-
-# Then connect via any MCP client
-# URL: http://127.0.0.1:8000/mcp
+python examples/dre_beat.py
 ```
 
-## Available MCP Tools
+This creates an 8-bar G-Funk track at 92 BPM in G minor with:
+- 8 tracks (Kick, Snare, Hi-Hat, Percussion, Bass, Rhodes, Synth Lead, Pads)
+- Authentic swung drum patterns
+- Melodic bass following Gm7 | Cm7 | D7 | Gm7 chord progression
+- Professional mix levels pre-configured
 
-### Session
-| Tool | Description |
-|------|-------------|
-| `get_session_info` | Get session details (tempo, tracks, scenes) |
-| `set_tempo` | Set BPM |
-| `start_playback` / `stop_playback` | Transport control |
-| `set_loop` | Set loop range |
-
-### Tracks
-| Tool | Description |
-|------|-------------|
-| `create_midi_track` | Create MIDI track (+ optional name) |
-| `create_audio_track` | Create audio track |
-| `delete_track` | Remove a track |
-| `duplicate_track` | Clone a track |
-| `set_track_name` | Rename track |
-| `arm_track` | Arm for recording |
-| `set_track_solo` / `set_track_mute` | Solo/mute control |
-
-### Clips
-| Tool | Description |
-|------|-------------|
-| `create_clip` | Create empty MIDI clip |
-| `add_notes_to_clip` | Add MIDI notes (pitch, time, duration, velocity) |
-| `get_clip_notes` | Read back MIDI notes from clip |
-| `set_clip_name` | Name a clip |
-| `fire_clip` / `stop_clip` | Launch/stop clips |
-| `delete_clip` | Remove clip |
-
-### Browser & Instruments
-| Tool | Description |
-|------|-------------|
-| `get_browser_tree` | Browse library hierarchy (instruments, sounds, drums, effects) |
-| `get_browser_items` | List items at a browser path |
-| `search_browser` | Search library by keyword |
-| `load_instrument` | Load instrument/sound onto track by URI |
-
-### Effects & Parameters
-| Tool | Description |
-|------|-------------|
-| `load_effect` | Load audio effect onto track |
-| `get_track_devices` | List devices on a track |
-| `get_device_parameters` | List all parameters of a device |
-| `set_device_parameter` | Control any device parameter |
-
-### Mixing
-| Tool | Description |
-|------|-------------|
-| `set_volume` | Track volume (0.0-1.0) |
-| `set_pan` | Track pan (-1.0 to 1.0) |
-| `set_send` | Send to return track |
-
-## Architecture
+## 📁 Project Structure
 
 ```
-┌─────────────────────┐     MCP Protocol      ┌──────────────────┐
-│   AI Agent / Client │ ◄──────────────────►  │  Chibe MCP Server │
-│  (Claude, Cursor,   │     (HTTP/SSE/Stdio)  │  (chibe_mcp/)    │
-│   OpenCode, etc.)   │                        │  Port 8000/8501  │
-└─────────────────────┘                        └────────┬─────────┘
-                                                        │ TCP Socket
-                                                        │ Port 9877
-                                               ┌────────▼─────────┐
-                                               │ Chibe Remote     │
-                                               │ Script           │
-                                               │ (in Ableton Live)│
-                                               └────────┬─────────┘
-                                                        │ Live API
-                                               ┌────────▼─────────┐
-                                               │ Ableton Live 12  │
-                                               │ Suite            │
-                                               └──────────────────┘
+chibe/
+├── chibe_mcp/              # MCP Server
+│   ├── server.py           # 43+ MCP tools
+│   ├── run_http.py         # HTTP transport
+│   ├── run_sse.py          # SSE transport
+│   ├── run_stdio.py        # Stdio transport
+│   └── __init__.py
+├── chibe_remote_script/    # Ableton Remote Script
+│   └── __init__.py         # 1073 lines, 40+ command handlers
+├── examples/
+│   └── dre_beat.py         # Dr. Dre G-Funk beat builder
+├── README.md               # This file
+├── pyproject.toml          # Project metadata
+├── requirements.txt        # Dependencies
+└── uv.lock                 # Locked dependencies
 ```
 
-## GitHub
+## 🔨 Development
 
-This project is designed to be pushed to GitHub for collaboration.
+### Run Tests
+```bash
+python test_connectivity.py
+```
+
+### Add New Commands
+1. Add handler to `chibe_remote_script/__init__.py` (in `modifying_commands` or `read_commands`)
+2. Add tool to `chibe_mcp/server.py` with `@mcp.tool()` decorator
+3. Test with: `python -c "import asyncio; from chibe_mcp.server import mcp; print([t.name for t in mcp._tool_manager._tools.values()])"`
+
+## 📄 License
+
+MIT License - Feel free to use, modify, and distribute!
+
+## 🤝 Contributing
+
+Contributions welcome! Please open an issue or PR on GitHub.
+
+---
+
+<p align="center">Built with ❤️ for AI-powered music production</p>
