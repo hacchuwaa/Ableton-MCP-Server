@@ -1,0 +1,19 @@
+[project]
+name = "chibe-ableton-mcp"
+version = "1.0.0"
+description = "AI-Powered Ableton Live Production Suite via MCP"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+    "uvicorn>=0.27.0",
+]
+
+[project.scripts]
+chibe-http = "chibe_mcp.run_http:main"
+chibe-sse = "chibe_mcp.run_sse:main"
+chibe-uvicorn = "chibe_mcp.run_uvicorn:main"
+chibe-beat = "examples.dre_beat:main"
+
+[tool.setuptools.packages.find]
+include = ["chibe_mcp*"]
