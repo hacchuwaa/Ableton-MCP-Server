@@ -332,6 +332,16 @@ def stop_playback() -> str:
 
 
 @mcp.tool()
+def show_session() -> str:
+    """Switch to Session view to see clips in clip slots."""
+    try:
+        result = _cmd("show_session")
+        return "Switched to Session view - look at the clip slots!"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
 def set_loop(loop_start: float = 0.0, loop_length: float = 32.0, looping: bool = True) -> str:
     """Set the loop range in the arrangement.
 
@@ -474,6 +484,29 @@ def set_track_mute(track_index: int, mute: bool = True) -> str:
 
 
 @mcp.tool()
+def create_instrument(track_index: int, instrument_type: str = "simpler") -> str:
+    """Create an instrument on a track.
+    
+    Attempts multiple methods to load the instrument reliably.
+    
+    Args:
+        track_index: Index of the track to load instrument onto
+        instrument_type: Type of instrument ('simpler', 'drum_rack', 'operator', 'analog', 'collision')
+    
+    Returns:
+        Status message with loaded instrument info
+    """
+    try:
+        result = _cmd("create_instrument", {"track_index": track_index, "instrument_type": instrument_type})
+        if result.get("loaded"):
+            return f"Loaded {result.get('instrument')} on track {track_index} (method: {result.get('method', 'unknown')})"
+        else:
+            return f"Track {track_index} prepared for manual instrument load: {result.get('message', '')}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
 def duplicate_track(track_index: int) -> str:
     """Duplicate a track.
     
@@ -531,6 +564,49 @@ def add_notes_to_clip(track_index: int, clip_index: int, notes: List[Dict[str, A
             "notes": notes
         })
         return f"Added {result.get('notes_added', 0)} notes to clip at track {track_index}, slot {clip_index}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+def create_arrangement_clip(track_index: int, start_time: float = 0.0, length: float = 4.0) -> str:
+    """Create a clip in the Arrangement view at a specific time position.
+    
+    Args:
+        track_index: Track index to create clip on
+        start_time: Position in the arrangement (in beats)
+        length: Length of the clip in beats
+    """
+    try:
+        result = _cmd("create_arrangement_clip", {
+            "track_index": track_index,
+            "start_time": start_time,
+            "length": length
+        })
+        return f"Created arrangement clip at track {track_index}, position {start_time}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+def add_notes_to_arrangement(track_index: int, start_time: float = 0.0, notes: List[Dict[str, Any]] = []) -> str:
+    """Add MIDI notes to the Arrangement view at a specific position.
+    
+    Args:
+        track_index: Track index
+        start_time: Start position in the arrangement (beats)
+        notes: List of note dicts with keys: pitch, start_time, duration, velocity, mute
+    
+    Example:
+        add_notes_to_arrangement(track_index=0, start_time=0.0, notes=[{"pitch": 60, "start_time": 0, "duration": 1}])
+    """
+    try:
+        result = _cmd("add_notes_to_arrangement", {
+            "track_index": track_index,
+            "start_time": start_time,
+            "notes": notes
+        })
+        return f"Added {result.get('notes_added', 0)} notes to arrangement at track {track_index}, position {start_time}"
     except Exception as e:
         return f"Error: {e}"
 
@@ -774,6 +850,24 @@ def load_instrument(track_index: int, uri: str) -> str:
 
 
 @mcp.tool()
+def browse_instruments(track_index: int) -> str:
+    """Open the browser to instruments section for a track.
+    
+    This makes it easy to load instruments manually - just click!
+    
+    Args:
+        track_index: Track to prepare for instrument loading
+    """
+    try:
+        result = _cmd("browse_instruments", {"track_index": track_index})
+        if result.get("status") == "browser_opened":
+            return f"Browser opened to Instruments for track '{result.get('track_name', '?')}'. Click an instrument to load it."
+        return result.get("message", "Failed to open browser")
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
 def load_drum_kit(track_index: int, rack_uri: str = "", kit_path: str = "") -> str:
     """Load a drum rack with a kit onto a track.
     
@@ -863,6 +957,31 @@ def set_device_parameter(track_index: int, device_index: int, parameter_index: i
             "value": value
         })
         return f"Set '{result.get('parameter_name', '?')}' on '{result.get('device_name', '?')}' to {value}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+def export_audio(file_path: str = r"C:\Users\MSI\Desktop\Chibe\export.wav", format: str = "wav", sample_rate: int = 44100, bit_depth: int = 24) -> str:
+    """Export the current arrangement to an audio file.
+    
+    Note: Ableton Live typically requires user confirmation for export.
+    This triggers the export dialog or returns instructions.
+    
+    Args:
+        file_path: Output file path
+        format: Audio format ('wav', 'aiff', 'mp3')
+        sample_rate: Sample rate (44100, 48000, 96000)
+        bit_depth: Bit depth (16, 24, 32)
+    """
+    try:
+        result = _cmd("export_audio", {
+            "file_path": file_path,
+            "format": format,
+            "sample_rate": sample_rate,
+            "bit_depth": bit_depth
+        })
+        return f"Export: {result.get('message', 'Export triggered')}\nFile: {result.get('file_path', file_path)}"
     except Exception as e:
         return f"Error: {e}"
 
